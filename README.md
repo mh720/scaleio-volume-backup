@@ -13,12 +13,14 @@ The scripts will hunt through a list of servers to find the current primary MDM,
 ## Installation
 
 mkdir /root/bin
+
 mv -t /root/bin snapshot_volume dump_snapshot restore_snapshot
+
 mv scaleio-backup-password.txt /etc
 
 You will need to edit all 3 scripts to change the hostnames of your scaleIO MDMs, passwords, IP address of the SDC host running these scripts, etc.
 
-__Be sure to change the password in /etc/scaleio-backup-password.txt to something unique! You could optionally modify the scripts to instead use "-pass env:ENVVAR" rather than storing the password in a file.__
+__**Be sure to change the password in /etc/scaleio-backup-password.txt to something unique! You could optionally modify the scripts to instead use "-pass env:ENVVAR" rather than storing the password in a file.**__
 
 ## Usage
 

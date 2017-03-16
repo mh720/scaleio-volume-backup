@@ -1,0 +1,49 @@
+#!/bin/bash
+
+SCALEIO_SERVERS="scale1.example.com scale2.example.com scale3.example.com"
+SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
+
+display_usage() { 
+	echo "This script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist."
+	echo -e "\nUsage:\nsnapshot_volume (volume_name) \n" 
+        exit 1
+} 
+
+if [  $# -ne 1 ] 
+then 
+	display_usage
+	exit 1
+fi 
+VOLUME_NAME=$1
+
+#Find out which server is our current primary MDM
+PRIMARY_SERVER=
+for SERVER in ${SCALEIO_SERVERS}; do
+  OUTPUT=$(ssh ${SERVER} "scli --login --username admin --password ${SCALEIO_PW} 2>&1") 
+  #Error: Failed to connect
+  #Logged in. User role is SuperUser. System ID is 78221ddb0dcff2f5
+  WORKED=$(echo "${OUTPUT}" | grep 'Logged in')
+  if [ $? -eq 0 ]; then
+    PRIMARY_SERVER=${SERVER}
+    break
+  fi
+done
+
+if [ "${PRIMARY_SERVER}" != "" ]; then
+  OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --query_all_volume") 
+  WORKED=$(echo "${OUTPUT}" | grep "Name: ${VOLUME_NAME}") 
+  if [ $? -eq 0 ]; then
+    SNAPSHOTS=$(echo "${OUTPUT}" | grep "Snapshot of ${VOLUME_NAME}")
+    SNAP_COUNT=$(echo "${SNAPSHOTS}" | wc -l)
+    if [ "${SNAP_COUNT}" == "31" ]; then
+      OLDEST_SNAP=$(echo "${SNAPSHOTS}" | awk '{print $3}' | sort | head -1)
+      OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --remove_volume --volume_id ${OLDEST_SNAP} --i_am_sure")
+      sleep 3
+      ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}"
+    else
+      ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}"
+    fi
+  else
+    echo "${OUTPUT}"; echo; echo "Volume ${VOLUME_NAME} not found."; exit
+  fi
+fi

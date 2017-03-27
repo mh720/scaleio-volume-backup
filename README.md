@@ -32,9 +32,13 @@ This script will snapshot a given volume ID, first deleting the oldest snapshot 
 Usage:  snapshot_volume [OPTIONS] (-n volume_name)
 
 OPTIONS:
+
  -h, -?   help
+
  -i       display only then new shapshot_ID upon success
+
  -n       ScaleIO volume_name to snapshot
+
  -v       increase verbosity
 
 
@@ -45,9 +49,13 @@ This script will attach a given snapshot volume ID temporarily as (ex: /dev/scin
 Usage:  dump_snapshot [OPTIONS] (-i volume_id)
 
 OPTIONS:
+
  -h, -?   help
+
  -f       display only the output filepath upon success
+
  -i       scaleIO volume_id to dump
+
  -v       increase verbosity
 
 
@@ -60,8 +68,13 @@ Usage: restore_snapshot [OPTIONS] (-n new_volume_name) (-s size_in_gb) (-f encry
 Example: restore_snapshot -n testvol2 -s 16 -f /volumedump/596fbe910000001b.gz
 
 OPTIONS:
+
  -h, -?   help
+
  -f       filepath of encrypted gzip file
+
  -n       name of the new scaleIO volume to create
+
  -s       size of the new volume to create (should match the original dumped volume size)
+
  -v       increase verbosity

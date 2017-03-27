@@ -1,20 +1,46 @@
 #!/bin/bash
 
-SCALEIO_SERVERS="scale1.example.com scale2.example.com scale3.example.com"
+SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
 SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
 
-display_usage() { 
-	echo "This script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist."
-	echo -e "\nUsage:\nsnapshot_volume (volume_name) \n" 
+show_help() { 
+	echo -e "\nThis script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist."
+	echo -e "\nUsage:  snapshot_volume [OPTIONS] (-n volume_name) \n" 
+	echo "OPTIONS:" 
+	echo " -h, -?   help" 
+	echo " -i       display only then new shapshot_ID upon success" 
+	echo " -n       ScaleIO volume_name to snapshot" 
+	echo -e " -v       increase verbosity\n" 
         exit 1
 } 
 
-if [  $# -ne 1 ] 
+OPTIND=1
+VOLUME_NAME=
+ID_ONLY=0
+VERBOSE=0
+
+while getopts "h?in:v" opt; do
+    case "$opt" in
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    i)  ID_ONLY=1
+        ;;
+    n)  VOLUME_NAME=$OPTARG
+        ;;
+    v)  VERBOSE=1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ "${VOLUME_NAME}" == "" ] 
 then 
-	display_usage
+	show_help
 	exit 1
 fi 
-VOLUME_NAME=$1
 
 #Find out which server is our current primary MDM
 PRIMARY_SERVER=
@@ -30,6 +56,7 @@ for SERVER in ${SCALEIO_SERVERS}; do
 done
 
 if [ "${PRIMARY_SERVER}" != "" ]; then
+  if [ ${VERBOSE} -eq 1 ]; then echo -e "Found primary ScaleIO MDM ${PRIMARY_SERVER}\n"; fi
   OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --query_all_volume") 
   WORKED=$(echo "${OUTPUT}" | grep "Name: ${VOLUME_NAME}") 
   if [ $? -eq 0 ]; then
@@ -38,12 +65,19 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
     if [ "${SNAP_COUNT}" == "31" ]; then
       OLDEST_SNAP=$(echo "${SNAPSHOTS}" | awk '{print $3}' | sort | head -1)
       OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --remove_volume --volume_id ${OLDEST_SNAP} --i_am_sure")
+      if [ ${VERBOSE} -eq 1 ]; then echo -e "Removing oldest snapshot as 31 currently exist.\n${OUTPUT}\n"; fi
       sleep 3
-      ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}"
+      OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}")
+      if [ ${ID_ONLY} -eq 0 ]; then echo -e "${OUTPUT}\n"; fi
+      if [ ${ID_ONLY} -eq 1 ]; then echo "${OUTPUT}" | awk '/=>/ {print $NF}'; fi
     else
-      ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}"
+      OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --snapshot_volume --volume_name ${VOLUME_NAME}")
+      if [ ${ID_ONLY} -eq 0 ]; then echo -e "${OUTPUT}\n"; fi
+      if [ ${ID_ONLY} -eq 1 ]; then echo "${OUTPUT}" | awk '/=>/ {print $NF}'; fi
     fi
   else
-    echo "${OUTPUT}"; echo; echo "Volume ${VOLUME_NAME} not found."; exit
+    (>&2 echo -e "\n${OUTPUT}\nERROR: Volume name ${VOLUME_NAME} not found."); exit 1
   fi
+else
+  (>&2 echo "ERROR: Could not determine the primary ScaleIO MDM server. Aborting."); exit 1
 fi

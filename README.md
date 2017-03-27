@@ -27,22 +27,41 @@ __**Be sure to change the password in /etc/scaleio-backup-password.txt to someth
 
 ### snapshot_volume
 
- This script will snapshot a given VOLUME_NAME, first deleting the oldest snapshot if 31 snapshots already exist.
+This script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist.
 
- Usage: snapshot_volume (volume_name)
+Usage:  snapshot_volume [OPTIONS] (-n volume_name)
+
+OPTIONS:
+ -h, -?   help
+ -i       display only then new shapshot_ID upon success
+ -n       ScaleIO volume_name to snapshot
+ -v       increase verbosity
 
 
 ### dump_snapshot
 
- This script will temporarily attach a given snapshot VOLUME_ID, and encrypt it into a gzip file.
+This script will attach a given snapshot volume ID temporarily as (ex: /dev/scinia) and encrypt it into a gzip file within (ex: /volumedump/).
 
- Usage: dump_snapshot (volume_id)
+Usage:  dump_snapshot [OPTIONS] (-i volume_id)
+
+OPTIONS:
+ -h, -?   help
+ -f       display only the output filepath upon success
+ -i       scaleIO volume_id to dump
+ -v       increase verbosity
 
 
 ### restore_snapshot
 
- This script will create a new ScaleIO volume of the specified size and name and restore an encrypted gzip volume dump into it.
+This script will create a new ScaleIO volume of the specified size, temporarily attach it to (ex: /dev/scinia) on this host, and restore an encrypted gzip volume dump into it.
 
- Usage: restore_snapshot (new_volume_name) (size_in_gb) (encrypted_gz_filename)
+Usage: restore_snapshot [OPTIONS] (-n new_volume_name) (-s size_in_gb) (-f encrypted_gz_filename)
 
- Example: restore_snapshot testvol2 16 /volumedump/596fbe910000001b.gz
+Example: restore_snapshot -n testvol2 -s 16 -f /volumedump/596fbe910000001b.gz
+
+OPTIONS:
+ -h, -?   help
+ -f       filepath of encrypted gzip file
+ -n       name of the new scaleIO volume to create
+ -s       size of the new volume to create (should match the original dumped volume size)
+ -v       increase verbosity

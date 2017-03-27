@@ -1,24 +1,50 @@
 #!/bin/bash
 
-SCALEIO_SERVERS="scale1.example.com scale2.example.com scale3.example.com"
+SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
 SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
 BACKUP_DEVICE=/dev/scinia
 BACKUP_LOCATION=/volumedump
-MYIP=192.168.33.1
-PASSWORD_FILE=/etc/scaleio-backup-password.txt
+MYIP=224.36.61.210
+PASSWORD_FILE=/etc/backup-passwords.txt
 
-display_usage() {
-        echo "This script will attach a given snapshot volume ID, and encrypt it into a gzip file."
-        echo -e "\nUsage:\ndump_snapshot (volume_id)\n"
+show_help() {
+        echo -e "\nThis script will attach a given snapshot volume ID temporarily as ${BACKUP_DEVICE} and encrypt it into a gzip file within ${BACKUP_LOCATION}/."
+        echo -e "\nUsage:  dump_snapshot [OPTIONS] (-i volume_id) \n"
+        echo "OPTIONS:"
+        echo " -h, -?   help"
+        echo " -f       display only the output filepath upon success"
+        echo " -i       scaleIO volume_id to dump"
+        echo -e " -v       increase verbosity\n"
         exit 1
 }
 
-if [  $# -ne 1 ]
+OPTIND=1
+VOLUME_ID=
+FILEPATH_ONLY=0
+VERBOSE=0
+
+while getopts "fh?i:v" opt; do
+    case "$opt" in
+    f)  FILEPATH_ONLY=1
+        ;;
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    i)  VOLUME_ID=$OPTARG
+        ;;
+    v)  VERBOSE=1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ "${VOLUME_ID}" == "" ]
 then
-        display_usage
+        show_help
         exit 1
 fi
-VOLUME_ID=$1
 
 #Find out which server is our current primary MDM
 PRIMARY_SERVER=
@@ -34,28 +60,45 @@ for SERVER in ${SCALEIO_SERVERS}; do
 done
 
 if [ "${PRIMARY_SERVER}" != "" ]; then
+  if [ ${VERBOSE} -eq 1 ]; then echo -e "Found primary ScaleIO MDM ${PRIMARY_SERVER}\n"; fi
   OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --query_volume --volume_id ${VOLUME_ID}")
+  if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
   WORKED=$(echo "${OUTPUT}" | grep 'Volume is unmapped')
   if [ $? -eq 0 ]; then
     OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --map_volume_to_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP}")
     #Successfully mapped volume with ID 597033bd0000001f to SDC 224.36.61.124
+    if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
     WORKED=$(echo "${OUTPUT}" | grep 'Successfully mapped')
     if [ $? -eq 0 ]; then
       sleep 5
-      time dd bs=1048576 if=${BACKUP_DEVICE} | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz
-      ls -lrt ${BACKUP_LOCATION}/${VOLUME_ID}.gz
+      if [ ${FILEPATH_ONLY} -eq 0 ]; then
+         echo "Mapped volume ID ${VOLUME_ID} to ${BACKUP_DEVICE}. Dumping to ${BACKUP_LOCATION}/${VOLUME_ID}.gz"
+         OUTPUT=$(time dd bs=1048576 if=${BACKUP_DEVICE} | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+      else
+         OUTPUT=$(dd bs=1048576 if=${BACKUP_DEVICE} 2>>/dev/null | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+      fi
+      if [ $? -eq 0 ]; then
+        if [ ${FILEPATH_ONLY} -eq 0 ]; then
+          echo "${OUTPUT}"; ls -lrt ${BACKUP_LOCATION}/${VOLUME_ID}.gz
+        else 
+          echo "${BACKUP_LOCATION}/${VOLUME_ID}.gz"
+        fi
+      fi
       OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure")
       #Successfully un-mapped volume with ID 597033bd0000001f from SDC 224.36.61.124
+      if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
       WORKED=$(echo "${OUTPUT}" | grep 'Successfully un-mapped')
       if [ $? -ne 0 ]; then
-        echo "${OUTPUT}"; echo
-        echo "WARNING: Volume unmap to this SDC was not successful. You may need to do the following manually on the primary MDM:"
-        echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"; exit
+        if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
+        (>&2 echo "WARNING: Volume unmap to this SDC was not successful. You may need to do the following manually on the primary MDM:")
+        (>&2 echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"); exit 2
       fi
     else
-      echo "${OUTPUT}"; echo; echo "ERROR: Aborting."; exit     
+      (>&2 echo -e "\n${OUTPUT}\nERROR: Failed to successfull map volume to this SDC."); exit 1
     fi
   else
-    echo "${OUTPUT}"; echo; echo "Unable to find unmapped volume ${VOLUME_ID}, aborting."; exit
+    (>&2 echo -e "\n${OUTPUT}\nERROR: Unable to find unmapped volume ${VOLUME_ID}."); exit 1
   fi
+else
+  (>&2 echo "ERROR: Could not determine the primary ScaleIO MDM server. Aborting."); exit 1
 fi

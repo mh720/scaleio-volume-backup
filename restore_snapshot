@@ -107,7 +107,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
           if [ $? -ne 0 ]; then
             echo "${OUTPUT}"; echo
             echo "WARNING: Volume unmap from SDC ${MY_IP} was not successful. You may need to do the following manually on the primary MDM:"
-            echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"; exit 1
+            echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"; exit 2
           fi
         else
           echo -e "${OUTPUT}\nERROR: Did not successfully map volume ID ${VOLUME_ID} to SDC ${MYIP}."; exit 1
@@ -119,6 +119,6 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
       echo -e "\n${OUTPUT}\nERROR: Failed to create volume ${VOLUME_NAME} with size ${SIZE}."; exit 1
     fi 
   else
-    echo "${OUTPUT}"; echo; echo "ERROR: Please check that ${VOLUME_NAME} doesn't already exist."; exit
+    echo "${OUTPUT}"; echo; echo "ERROR: Please check that ${VOLUME_NAME} doesn't already exist."; exit 1
   fi
 fi

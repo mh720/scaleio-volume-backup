@@ -27,7 +27,7 @@ __**Be sure to change the password in /etc/scaleio-backup-password.txt to someth
 
 ### snapshot_volume
 
-This script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist.
+This script will snapshot a given volume name, first deleting the oldest snapshot if 31 snapshots already exist.
 
 Usage:  snapshot_volume [OPTIONS] (-n volume_name)
 
@@ -61,7 +61,7 @@ OPTIONS:
 
 ### restore_snapshot
 
-This script will create a new ScaleIO volume of the specified size, temporarily attach it to (ex: /dev/scinia) on this host, and restore an encrypted gzip volume dump into it.
+This script will create a new ScaleIO volume of the specified name and size, temporarily attach it to (ex: /dev/scinia) on this host, and restore an encrypted gzip volume dump into it.
 
 Usage: restore_snapshot [OPTIONS] (-n new_volume_name) (-s size_in_gb) (-f encrypted_gz_filename)
 

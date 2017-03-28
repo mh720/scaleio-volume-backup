@@ -9,7 +9,7 @@ MYIP=224.36.61.210
 PASSWORD_FILE=/etc/backup-passwords.txt
 
 show_help() {
-        echo -e "\nThis script will create a new ScaleIO volume of the specified size, temporarily attach it to ${TARGET_DEVICE} on this host, and restore an encrypted gzip volume dump into it."
+        echo -e "\nThis script will create a new ScaleIO volume of the specified name and size, temporarily attach it to ${TARGET_DEVICE} on this host, and restore an encrypted gzip volume dump into it."
         echo -e "\nUsage: restore_snapshot [OPTIONS] (-n new_volume_name) (-s size_in_gb) (-f encrypted_gz_filename)"
         echo -e "\nExample: restore_snapshot -n testvol2 -s 16 -f /volumedump/596fbe910000001b.gz\n"
         echo "OPTIONS:"

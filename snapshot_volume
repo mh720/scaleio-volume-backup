@@ -4,7 +4,7 @@ SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
 SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
 
 show_help() { 
-	echo -e "\nThis script will snapshot a given volume ID, first deleting the oldest snapshot if 31 snapshots already exist."
+	echo -e "\nThis script will snapshot a given volume name, first deleting the oldest snapshot if 31 snapshots already exist."
 	echo -e "\nUsage:  snapshot_volume [OPTIONS] (-n volume_name) \n" 
 	echo "OPTIONS:" 
 	echo " -h, -?   help" 

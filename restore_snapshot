@@ -66,6 +66,9 @@ fi
 if [ ! -f ${FILEPATH} ]; then
   echo -e "\nERROR: Unable to find ${FILEPATH}. Aborting."; exit 1
 fi
+if [[ -f ${TARGET_DEVICE} || -b ${TARGET_DEVICE} ]]; then
+  echo -e "\nERROR: ${TARGET_DEVICE} already exists on this host. Aborting."; exit 1
+fi
 
 #Find out which server is our current primary MDM
 PRIMARY_SERVER=

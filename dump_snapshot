@@ -2,14 +2,14 @@
 
 SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
 SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
-BACKUP_DEVICE=/dev/scinia
+TARGET_DEVICE=/dev/scinia
 BACKUP_LOCATION=/volumedump
 MYIP=224.36.61.210
 PASSWORD_FILE=/etc/backup-passwords.txt
 RATE=20
 
 show_help() {
-        echo -e "\nThis script will attach a given snapshot volume ID temporarily as ${BACKUP_DEVICE} and encrypt it into a gzip file within ${BACKUP_LOCATION}/."
+        echo -e "\nThis script will attach a given snapshot volume ID temporarily as ${TARGET_DEVICE} and encrypt it into a gzip file within ${BACKUP_LOCATION}/."
         echo -e "\nUsage:  dump_snapshot [OPTIONS] (-i volume_id) \n"
         echo "OPTIONS:"
         echo " -h, -?   help"
@@ -47,6 +47,10 @@ then
         exit 1
 fi
 
+if [[ -f ${TARGET_DEVICE} || -b ${TARGET_DEVICE} ]]; then
+  echo -e "\nERROR: ${TARGET_DEVICE} already exists on this host. Aborting."; exit 1
+fi
+
 #Find out which server is our current primary MDM
 PRIMARY_SERVER=
 for SERVER in ${SCALEIO_SERVERS}; do
@@ -73,10 +77,10 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
     if [ $? -eq 0 ]; then
       sleep 5
       if [ ${FILEPATH_ONLY} -eq 0 ]; then
-         echo "Mapped volume ID ${VOLUME_ID} to ${BACKUP_DEVICE}. Dumping to ${BACKUP_LOCATION}/${VOLUME_ID}.gz"
-         OUTPUT=$(time dd bs=1048576 if=${BACKUP_DEVICE} | pv -q --rate-limit ${RATE}m | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+         echo "Mapped volume ID ${VOLUME_ID} to ${TARGET_DEVICE}. Dumping to ${BACKUP_LOCATION}/${VOLUME_ID}.gz"
+         OUTPUT=$(time dd bs=1048576 if=${TARGET_DEVICE} | pv -q --rate-limit ${RATE}m | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       else
-         OUTPUT=$(dd bs=1048576 if=${BACKUP_DEVICE} 2>>/dev/null | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+         OUTPUT=$(dd bs=1048576 if=${TARGET_DEVICE} 2>>/dev/null | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       fi
       if [ $? -eq 0 ]; then
         if [ ${FILEPATH_ONLY} -eq 0 ]; then

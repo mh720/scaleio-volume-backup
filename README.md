@@ -8,7 +8,7 @@ The scripts will hunt through a list of servers to find the current primary MDM,
 
 1. These scripts must be executed from a host that can "ssh" to all ScaleIO MDM hosts as root, without password. You are encouraged to modify these scripts to suit your security needs within your environment.
 2. SDC client must be present on the machine running the "dump_snapshot" or "restore_snapshot" commands, as volumes will be mounted to this machine during the process.
-3. The "openssl" package needs to be present on the host doing the dumping or restoring.
+3. The "openssl" and "pv" packages needs to be present on the host doing the dumping or restoring.
 
 ## Installation
 

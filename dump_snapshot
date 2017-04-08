@@ -6,7 +6,7 @@ TARGET_DEVICE=/dev/scinia
 BACKUP_LOCATION=/volumedump
 MYIP=224.36.61.210
 PASSWORD_FILE=/etc/backup-passwords.txt
-RATE=20
+RATE=20m
 
 show_help() {
         echo -e "\nThis script will attach a given snapshot volume ID temporarily as ${TARGET_DEVICE} and encrypt it into a gzip file within ${BACKUP_LOCATION}/."
@@ -78,9 +78,9 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
       sleep 5
       if [ ${FILEPATH_ONLY} -eq 0 ]; then
          echo "Mapped volume ID ${VOLUME_ID} to ${TARGET_DEVICE}. Dumping to ${BACKUP_LOCATION}/${VOLUME_ID}.gz"
-         OUTPUT=$(time dd bs=1048576 if=${TARGET_DEVICE} | pv -q --rate-limit ${RATE}m | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+         OUTPUT=$(time dd bs=1048576 if=${TARGET_DEVICE} | pv -q --rate-limit ${RATE} | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       else
-         OUTPUT=$(dd bs=1048576 if=${TARGET_DEVICE} 2>>/dev/null | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+         OUTPUT=$(dd bs=1048576 if=${TARGET_DEVICE} 2>>/dev/null | pv -q --rate-limit ${RATE} | gzip -9 --stdout - | openssl enc -e -aes-256-cbc -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       fi
       if [ $? -eq 0 ]; then
         if [ ${FILEPATH_ONLY} -eq 0 ]; then

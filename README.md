@@ -2,7 +2,7 @@
 
 ### A set of scripts for creating ScaleIO snapshots, dumping them to an encrypted file, and restoring such files.
 
-The scripts will hunt through a list of servers to find the current primary MDM, on which the "scli" command will be executed.
+The scripts will hunt through a list of servers to find the current primary MDM, on which the "scli" commands will be executed over ssh.
 
 ## Requirements:
 
@@ -37,8 +37,6 @@ OPTIONS:
 
  -i       display only then new shapshot_ID upon success
 
- -n       ScaleIO volume_name to snapshot
-
  -v       increase verbosity
 
 
@@ -53,8 +51,6 @@ OPTIONS:
  -h, -?   help
 
  -f       display only the output filepath upon success
-
- -i       scaleIO volume_id to dump
 
  -v       increase verbosity
 
@@ -75,6 +71,6 @@ OPTIONS:
 
  -n       name of the new scaleIO volume to create
 
- -s       size of the new volume to create (should match the original dumped volume size)
+ -s       size of the new volume to create in GB (should match the original dumped volume size)
 
  -v       increase verbosity

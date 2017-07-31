@@ -12,7 +12,7 @@ The scripts will hunt through a list of ScaleIO MDM servers to find the current 
 
 3. The scripts expect that the defined TARGET_DEVICE (ex: /dev/scinia) will be the device name used when dumping or restoring. For this reason, you are encouraged to use a host that doesn't dynamically mount ScaleIO volumes for other purposes.
 
-4. The "openssl" and "pv" packages needs to be present on the host doing the dumping or restoring.
+4. The "openssl" and "pv" packages needs to be present on the host doing the dumping or restoring. If rate-limiting isn't desired, you can remove the inline 'pv' commands from the dump and restore scripts.
 
 ## Installation
 

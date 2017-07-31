@@ -39,7 +39,7 @@ REMOTE_BACKUP_LOCATION_TMP=/backups/tmp/
 #
 # This script will:
 #
-#  1. Dump a ScaleIO an encrypted file to ex: /volumedump/01231238535a123.gz
+#  1. Dump a ScaleIO volume to an encrypted file, ex: /volumedump/01231238535a123.gz
 #  2. Restore the encrypted file to a new temporary ScaleIO volume
 #  3. Launch a docker container and mount the volume within it as /var/lib/pgsql
 #  4. Run a 'psql' command to test that the database reads the volume correctly

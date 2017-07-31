@@ -22,7 +22,7 @@ mv -t /root/bin snapshot_volume dump_snapshot restore_snapshot
 
 mv backup-password.txt /etc
 
-You will need to edit all 3 scripts to change the hostnames of your scaleIO MDMs, passwords, IP address of the SDC host running these scripts, etc.
+You will need to edit each script with the hostname(s) of your scaleIO MDM(s) and scli password, and path to dump or restore files to/from.
 
 __**Be sure to change the password in /etc/backup-password.txt to something unique! You could optionally modify the scripts to instead use "-pass env:ENVVAR" rather than storing the password in a file.**__
 

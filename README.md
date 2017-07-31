@@ -78,3 +78,17 @@ OPTIONS:
  -s       size of the new volume to create in GB (should match the original dumped volume size)
 
  -v       increase verbosity
+
+
+### example_backup_postgres_docker_volume
+
+##This script provides an example of using the snapshot, dump, and restore scripts to automate dumping a PostgreSQL docker volume to an encrypted file. Then, a new temporary ScaleIO volume is created, testing the restore of the encrypted file, and finally a postgres docker container is launched and passed the temporary volume and the output of an arbirary 'psql' command is checked to ensure that the encrypted backup passes sanity, before it is 'rsync'd to a remote archive host. In this way, only working backups that have been tested will be archived.
+
+##This script will:
+
+1. Dump a ScaleIO volume to an encrypted file, ex: /volumedump/01231238535a123.gz
+2. Restore the encrypted file to a new temporary ScaleIO volume
+3. Launch a docker container and mount the temporary volume within it [/var/lib/pgsql]
+4. Run a 'psql' command to test that the database reads the volume correctly
+5. Stop the docker container, remove the temporary ScaleIO volume
+6. Archive the 'checked' encrypted file to a remote host using rsync

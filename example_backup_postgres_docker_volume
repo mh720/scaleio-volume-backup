@@ -1,0 +1,198 @@
+#!/bin/bash
+
+export PATH=$PATH:/usr/sbin
+
+SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
+SCALEIO_PW="<SCALEIO-PASSWORD>"
+SCALEIO_VOLUME_NAME=postgres_volume
+SCALEIO_TEMP_VOLUME_NAME=postgres_volume_backup
+SCALEIO_VOLUME_SIZE=16
+
+LOCAL_TARGET_DEVICE=/dev/scinia
+LOCAL_BACKUP_LOCATION=/volumedump
+LOCAL_SDC_IP=$(ip addr show dev eth0 | awk -F'[ /]*' '/inet/ {print $3}')
+
+DOCKER_POSTGRES_IMAGE=centos:postgresql-95-centos7
+DOCKER_CONTAINER_VOLUME_PATH=/var/lib/pgsql
+
+REMOTE_BACKUP_HOST=my_backup_host.example.com
+REMOTE_BACKUP_LOCATION=/backups/postgres/
+REMOTE_BACKUP_LOCATION_TMP=/backups/tmp/
+
+# NOTES
+#
+# BE SURE TO CHANGE THE "TESTOUT" LINE FOR YOUR DATABASE NAME, COLUMN, AND TABLE TO SPOT CHECK
+#
+# IMPORTANT:  REX-Ray MUST BE INSTALLED AND CONFIGURED ON THE HOST PRIOR TO USE
+#
+# Recommended to use your own actual postgresql container image rather than centos:postgresql-xx
+#
+# This script provides an example of using the snapshot, dump, and restore scripts to automate
+# dumping a PostgreSQL docker volume to an encrypted file. Then, a new temporary ScaleIO volume
+# is created, testing the restore of the encrypted file, and finally a postgres docker container
+# is launched and passed the temporary volume and the output of an arbirary 'psql' command is
+# checked to ensure that the encrypted backup passes sanity, before it is 'rsync'd to a remote
+# archive host. In this way, only working backups that have been tested will be archived.
+#
+# Additionally, a file is created as /tmp/service.nagiosdata.SCALEIO_TEMP_VOLUME_NAME in a format
+# useful for nagios-based monitoring software. Change this as needed for your own monitoring.
+#
+# This script will:
+#
+#  1. Dump a ScaleIO an encrypted file to ex: /volumedump/01231238535a123.gz
+#  2. Restore the encrypted file to a new temporary ScaleIO volume
+#  3. Launch a docker container and mount the volume within it as /var/lib/pgsql
+#  4. Run a 'psql' command to test that the database reads the volume correctly
+#  5. Stop the docker container, remove the temporary ScaleIO volume
+#  6. Archive the 'checked' encrypted file to a remote host using rsync
+
+
+#Find out which server is our current primary MDM
+PRIMARY_SERVER=
+for SERVER in ${SCALEIO_SERVERS}; do
+  OUTPUT=$(ssh ${SERVER} "scli --login --username admin --password ${SCALEIO_PW} 2>&1")
+  #Error: Failed to connect
+  #Logged in. User role is SuperUser. System ID is 78221ddb0dcff2f5
+  WORKED=$(echo "${OUTPUT}" | grep 'Logged in')
+  if [ $? -eq 0 ]; then
+    PRIMARY_SERVER=${SERVER}
+    break
+  fi
+done
+
+if [ "${PRIMARY_SERVER}" != "" ]; then
+
+  if [ -f ${LOCAL_TARGET_DEVICE} ]; then
+    # Try to detach and delete previous temporary volume
+    OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_name ${SCALEIO_TEMP_VOLUME_NAME} --sdc_ip ${LOCAL_SDC_IP} --i_am_sure 2>&1")
+    sleep 10
+  fi
+
+  if [ -f ${LOCAL_TARGET_DEVICE} ]; then
+    # Try to find old snapshots that are mounted to this host and unmap them
+    OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --query_sdc --sdc_ip ${LOCAL_SDC_IP} 2>&1 | grep -m 1 'Volume ID'")
+    if [ $? -eq 0 ]; then
+      SNAPSHOTID=$(echo "${OUTPUT}" | awk '{print $4}')
+      OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_id ${SNAPSHOTID} --sdc_ip ${LOCAL_SDC_IP} --i_am_sure 2>&1")
+      sleep 10
+    fi
+  fi
+
+  # Delete old backup temporary volume, if it still exists
+  OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --remove_volume --volume_name ${SCALEIO_TEMP_VOLUME_NAME} --i_am_sure 2>&1")
+  sleep 10
+
+  if [ -f ${LOCAL_TARGET_DEVICE} ]; then
+    echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+    touch /tmp/A01
+    exit 1
+  fi
+
+  if [ -f /tmp/.volume_backup_in_progress ]; then
+    echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 Aborting due to previous backup still running" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+    exit 1
+  fi
+
+  touch /tmp/.volume_backup_in_progress
+
+  # Delete any old backup files 
+  rm -rf ${LOCAL_BACKUP_LOCATION}/*.gz
+
+  VOLID=$(/usr/local/bin/snapshot_volume -i -n ${SCALEIO_VOLUME_NAME})
+  if [ $? -eq 0 ]; then
+
+    sleep 10
+
+    SECONDS=0
+    FILEPATH=$(/usr/local/bin/dump_snapshot -f -i ${VOLID} 2>&1)
+    if [ $? -eq 0 ]; then
+
+      DUMPTIME=$SECONDS
+      sleep 10 
+
+      if [ -f ${LOCAL_TARGET_DEVICE} ]; then
+        echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=0|test_time=0|filesize=|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+        touch /tmp/A02
+        exit 1
+      fi
+
+      if [[ -f ${FILEPATH} && -s ${FILEPATH} ]]; then
+
+        FILESIZE=$(ls -lrt ${FILEPATH} | awk '{print $5}')
+
+        SECONDS=0
+        RESTORE=$(/usr/local/bin/restore_snapshot -n ${SCALEIO_TEMP_VOLUME_NAME} -s ${SCALEIO_VOLUME_SIZE} -f ${FILEPATH} 2>&1)
+        if [ $? -eq 0 ]; then
+          RESTORETIME=$SECONDS
+
+          sleep 10
+
+          if [ -f ${LOCAL_TARGET_DEVICE} ]; then
+            echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=0|filesize=${FILESIZE}|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+            touch /tmp/A03
+            exit 1
+          fi
+
+          SECONDS=0
+          DOCKOUT=$(docker run -d --volume-driver=rexray -v ${SCALEIO_TEMP_VOLUME_NAME}:${DOCKER_CONTAINER_VOLUME_PATH} ${DOCKER_POSTGRES_IMAGE} 2>&1)
+          if [ $? -eq 0 ]; then
+
+            sleep 30
+
+            CONTAINERID=$(echo "${DOCKOUT}" | tail -1)
+            TESTOUT=$(docker exec ${CONTAINERID} /usr/bin/psql -U postgres DATABASE_NAME -tAc 'select count(SOME_COLUMN_NAME) from SOME_TABLE_NAME;' 2>&1)
+            if [ $? -eq 0 ]; then
+
+              docker stop ${CONTAINERID} >> /dev/null
+              sleep 10
+
+              OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume --volume_name ${SCALEIO_TEMP_VOLUME_NAME} --all_sdc --i_am_sure 2>&1")
+              sleep 10
+
+              OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --remove_volume --volume_name ${SCALEIO_TEMP_VOLUME_NAME} --all_sdc --i_am_sure 2>&1")
+              sleep 10
+
+              TESTTIME=$SECONDS
+               
+              rm -f /tmp/A01; rm -f /tmp/A02; rm -f /tmp/A03
+
+              SECONDS=0
+              RSYNCOUT=$(rsync -aq --temp-dir=${REMOTE_BACKUP_LOCATION_TMP} -e "ssh -T -c aes128-ctr -o Compression=no -x" ${FILEPATH} ${REMOTE_BACKUP_HOST}:${REMOTE_BACKUP_LOCATION} 2>&1)
+              if [ $? -eq 0 ]; then
+                RSYNCTIME=$SECONDS
+                echo "0 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=${TESTTIME}|filesize=${FILESIZE}|rsync_time=${RSYNCTIME} Backed up ${FILEPATH} to ${REMOTE_BACKUP_HOST}:${REMOTE_BACKUP_LOCATION}" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+              else
+                RSYNCTIME=$SECONDS
+                echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=${TESTTIME}|filesize=${FILESIZE}|rsync_time=${RSYNCTIME} E01 " ${RSYNCOUT} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+              fi
+            else
+              TESTTIME=$SECONDS
+              echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=${TESTTIME}|filesize=${FILESIZE}|rsync_time=0 E02 " ${TESTOUT} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+            fi
+          else
+            TESTTIME=$SECONDS
+            echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=${TESTTIME}|filesize=${FILESIZE}|rsync_time=0 E03 " ${DOCKOUT} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+          fi
+        else
+          RESTORETIME=$SECONDS
+          echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=0|filesize=${FILESIZE}|rsync_time=0 E04 " ${RESTORE} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+        fi 
+      else
+        echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=0|test_time=0|filesize=0|rsync_time=0 Non-zero length ${FILEPATH} does not exist" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+      fi
+    else
+      DUMPTIME=$SECONDS
+      echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=0|test_time=0|filesize=0|rsync_time=0 dump_snapshot reported: " ${FILEPATH} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+    fi
+
+    rm -f ${FILEPATH}
+  else
+    echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 snapshot_volume reported: " ${VOLID} > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+  fi
+
+  rm -f /tmp/.volume_backup_in_progress
+
+else
+  echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 Could not determine the primary ScaleIO MDM server." > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+  (>&2 echo "ERROR: Could not determine the primary ScaleIO MDM server. Aborting."); exit 1
+fi

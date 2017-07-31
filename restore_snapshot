@@ -1,13 +1,14 @@
 #!/bin/bash
 
+export PATH=$PATH:/usr/sbin
 SCALEIO_SERVERS="scaleio1.example.com scaleio2.example.com scaleio3.example.com"
-SCALEIO_PW="SCALEIO_ADMIN_PASSWORD"
+SCALEIO_PW="<SCALEIO-PASSWORD>"
 PROTECTION_DOMAIN_NAME=default
 STORAGE_POOL_NAME=default
 TARGET_DEVICE=/dev/scinia
-MYIP=224.36.61.210
+MYIP=$(ip addr show dev eth0 | awk -F'[ /]*' '/inet/ {print $3}')
 PASSWORD_FILE=/etc/backup-passwords.txt
-RATE=20
+RATE=70m
 
 show_help() {
         echo -e "\nThis script will create a new ScaleIO volume of the specified name and size, temporarily attach it to ${TARGET_DEVICE} on this host, and restore an encrypted gzip volume dump into it."
@@ -103,7 +104,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
         WORKED=$(echo "${OUTPUT}" | grep "Successfully mapped")
         if [ $? -eq 0 ]; then
           sleep 5
-          time openssl enc -d -aes-256-cbc -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gunzip -dc | pv -q --rate-limit ${RATE}m | dd bs=1048576 of=${TARGET_DEVICE}
+          time openssl enc -d -aes-128-gcm -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gunzip -dc | pv -q --rate-limit ${RATE} | dd bs=1048576 of=${TARGET_DEVICE}
           OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure")
           #Successfully un-mapped volume with ID 597033bd0000001f from SDC 224.36.61.124
           if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
@@ -111,7 +112,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
           if [ $? -ne 0 ]; then
             echo "${OUTPUT}"; echo
             echo "WARNING: Volume unmap from SDC ${MY_IP} was not successful. You may need to do the following manually on the primary MDM:"
-            echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"; exit 2
+            echo "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure"; exit 1
           fi
         else
           echo -e "${OUTPUT}\nERROR: Did not successfully map volume ID ${VOLUME_ID} to SDC ${MYIP}."; exit 1
@@ -123,6 +124,6 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
       echo -e "\n${OUTPUT}\nERROR: Failed to create volume ${VOLUME_NAME} with size ${SIZE}."; exit 1
     fi 
   else
-    echo "${OUTPUT}"; echo; echo "ERROR: Please check that ${VOLUME_NAME} doesn't already exist."; exit 1
+    echo "${OUTPUT}"; echo; echo "ERROR: Please check that ${VOLUME_NAME} doesn't already exist."; exit
   fi
 fi

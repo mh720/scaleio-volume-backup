@@ -2,13 +2,16 @@
 
 ### A set of scripts for creating ScaleIO snapshots, dumping them to an encrypted file, and restoring such files.
 
-The scripts will hunt through a list of servers to find the current primary MDM, on which the "scli" commands will be executed over ssh.
+The scripts will hunt through a list of ScaleIO MDM servers to find the current primary, on which "scli" commands will be executed to attach, detach, and create new snapshots and volumes.
 
 ## Requirements:
 
-1. The scripts must be executed from a host that can "ssh" to all ScaleIO MDM hosts as root, without password. You are encouraged to modify these scripts to suit your security needs within your environment.
+1. The scripts are written to be executed from a host that can "ssh" to all ScaleIO MDM hosts in your cluster as root, without password. You are encouraged to modify these scripts to suit your security needs within your environment.
+
 2. SDC client must be present on the machine running the "dump_snapshot" or "restore_snapshot" commands, as volumes will be mounted to this machine during the process.
+
 3. The scripts expect that the defined TARGET_DEVICE (ex: /dev/scinia) will be the device name used when dumping or restoring. For this reason, you are encouraged to use a host that doesn't dynamically mount ScaleIO volumes for other purposes.
+
 4. The "openssl" and "pv" packages needs to be present on the host doing the dumping or restoring.
 
 ## Installation

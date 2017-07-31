@@ -41,7 +41,7 @@ REMOTE_BACKUP_LOCATION_TMP=/backups/tmp/
 #
 #  1. Dump a ScaleIO volume to an encrypted file, ex: /volumedump/01231238535a123.gz
 #  2. Restore the encrypted file to a new temporary ScaleIO volume
-#  3. Launch a docker container and mount the volume within it as /var/lib/pgsql
+#  3. Launch a docker container and mount the temporary volume within it [/var/lib/pgsql]
 #  4. Run a 'psql' command to test that the database reads the volume correctly
 #  5. Stop the docker container, remove the temporary ScaleIO volume
 #  6. Archive the 'checked' encrypted file to a remote host using rsync

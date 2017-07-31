@@ -29,7 +29,7 @@ __**Be sure to change the password in /etc/backup-password.txt to something uniq
 ## Usage
 
 
-### snapshot_volume
+## snapshot_volume
 
 This script will snapshot a given volume name, first deleting the oldest snapshot if 31 snapshots already exist.
 
@@ -44,7 +44,7 @@ OPTIONS:
  -v       increase verbosity
 
 
-### dump_snapshot
+## dump_snapshot
 
 This script will attach a given snapshot volume ID temporarily as (ex: /dev/scinia) and encrypt it into a gzip file within (ex: /volumedump/).
 
@@ -59,7 +59,7 @@ OPTIONS:
  -v       increase verbosity
 
 
-### restore_snapshot
+## restore_snapshot
 
 This script will create a new ScaleIO volume of the specified name and size, temporarily attach it to (ex: /dev/scinia) on this host, and restore an encrypted gzip volume dump into it.
 
@@ -80,11 +80,11 @@ OPTIONS:
  -v       increase verbosity
 
 
-### example_backup_postgres_docker_volume
+## example_backup_postgres_docker_volume
 
-##This script provides an example of using the snapshot, dump, and restore scripts to automate dumping a PostgreSQL docker volume to an encrypted file. Then, a new temporary ScaleIO volume is created, testing the restore of the encrypted file, and finally a postgres docker container is launched and passed the temporary volume and the output of an arbirary 'psql' command is checked to ensure that the encrypted backup passes sanity, before it is 'rsync'd to a remote archive host. In this way, only working backups that have been tested will be archived.
+This script provides an example of using the snapshot, dump, and restore scripts to automate dumping a PostgreSQL docker volume to an encrypted file. Then, a new temporary ScaleIO volume is created, testing the restore of the encrypted file, and finally a postgres docker container is launched and passed the temporary volume and the output of an arbirary 'psql' command is checked to ensure that the encrypted backup passes sanity, before it is 'rsync'd to a remote archive host. In this way, only working backups that have been tested will be archived.
 
-##This script will:
+This script will:
 
 1. Dump a ScaleIO volume to an encrypted file, ex: /volumedump/01231238535a123.gz
 2. Restore the encrypted file to a new temporary ScaleIO volume

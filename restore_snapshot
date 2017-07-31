@@ -85,29 +85,42 @@ for SERVER in ${SCALEIO_SERVERS}; do
 done
 
 if [ "${PRIMARY_SERVER}" != "" ]; then
+
   if [ ${VERBOSE} -eq 1 ]; then echo -e "Found primary ScaleIO MDM ${PRIMARY_SERVER}\n"; fi
+
   OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --query_volume --volume_name ${VOLUME_NAME} 2>&1")
   #Error: MDM failed command.  Status: Could not find the volume
+
   WORKED=$(echo "${OUTPUT}" | grep 'Could not find the volume')
   if [ $? -eq 0 ]; then
+
     OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --add_volume --protection_domain_name ${PROTECTION_DOMAIN_NAME} --storage_pool_name ${STORAGE_POOL_NAME} --size_gb ${SIZE} --volume_name ${VOLUME_NAME} --thin_provisioned")
     #Successfully created volume of size 16 GB. Object ID 597033bf0000003c
+
     if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
+
     WORKED=$(echo "${OUTPUT}" | grep 'Successfully created volume')
     if [ $? -eq 0 ]; then
+
       VOLUME_ID=$(echo "${OUTPUT}" | awk '/Object ID/ {print $NF}')
       WORKED=$(echo "${VOLUME_ID}" | egrep '[0-9a-f]{16}')
+
       if [ $? -eq 0 ]; then
+
         OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --map_volume_to_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP}")
         if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
+
         #Successfully mapped volume with ID 597033bd0000001f to SDC 224.36.61.124
         WORKED=$(echo "${OUTPUT}" | grep "Successfully mapped")
         if [ $? -eq 0 ]; then
+
           sleep 5
-          time openssl enc -d -aes-128-gcm -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gunzip -dc | pv -q --rate-limit ${RATE} | dd bs=1048576 of=${TARGET_DEVICE}
+          time openssl enc -d -aes-128-ctr -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gunzip -dc | pv -q --rate-limit ${RATE} | dd bs=1048576 of=${TARGET_DEVICE}
           OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure")
-          #Successfully un-mapped volume with ID 597033bd0000001f from SDC 224.36.61.124
+
           if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi
+
+          #Successfully un-mapped volume with ID 597033bd0000001f from SDC 224.36.61.124
           WORKED=$(echo "${OUTPUT}" | grep "Successfully un-mapped")
           if [ $? -ne 0 ]; then
             echo "${OUTPUT}"; echo

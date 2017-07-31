@@ -83,7 +83,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
   sleep 10
 
   if [ -f ${LOCAL_TARGET_DEVICE} ]; then
-    echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+    echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=0|restore_time=0|test_time=0|filesize=0|rsync_time=0 Aborting due to already existing ${LOCAL_TARGET_DEVICE}" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
     touch /tmp/A01
     exit 1
   fi
@@ -111,7 +111,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
       sleep 10 
 
       if [ -f ${LOCAL_TARGET_DEVICE} ]; then
-        echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=0|test_time=0|filesize=|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+        echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=0|test_time=0|filesize=|rsync_time=0 Aborting due to already existing ${LOCAL_TARGET_DEVICE}" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
         touch /tmp/A02
         exit 1
       fi
@@ -128,7 +128,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
           sleep 10
 
           if [ -f ${LOCAL_TARGET_DEVICE} ]; then
-            echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=0|filesize=${FILESIZE}|rsync_time=0 Aborting due to currently mounted /dev/scinia device" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
+            echo "1 ${SCALEIO_TEMP_VOLUME_NAME} dump_time=${DUMPTIME}|restore_time=${RESTORETIME}|test_time=0|filesize=${FILESIZE}|rsync_time=0 Aborting due to already existing ${LOCAL_TARGET_DEVICE}" > /tmp/service.nagiosdata.${SCALEIO_TEMP_VOLUME_NAME}
             touch /tmp/A03
             exit 1
           fi

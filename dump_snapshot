@@ -86,7 +86,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
 
       if [ ${FILEPATH_ONLY} -eq 0 ]; then
          echo "Mapped volume ID ${VOLUME_ID} to ${TARGET_DEVICE}. Dumping to ${BACKUP_LOCATION}/${VOLUME_ID}.gz"
-         OUTPUT=$(time dd bs=1048576 if=${TARGET_DEVICE} | pv -q --rate-limit ${RATE} | ${COMPRESS_PROGRAM} -1 --stdout - | ${COMPRESS_PROGRAM} -1 --stdout - | openssl enc -e -aes-128-ctr -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
+         OUTPUT=$(time dd bs=1048576 if=${TARGET_DEVICE} | pv -q --rate-limit ${RATE} | ${COMPRESS_PROGRAM} -1 --stdout - | openssl enc -e -aes-128-ctr -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       else
          OUTPUT=$(dd bs=1048576 if=${TARGET_DEVICE} 2>>/dev/null | pv -q --rate-limit ${RATE} | ${COMPRESS_PROGRAM} -1 --stdout - | ${COMPRESS_PROGRAM} -1 --stdout - | openssl enc -e -aes-128-ctr -pass file:${PASSWORD_FILE} -out ${BACKUP_LOCATION}/${VOLUME_ID}.gz)
       fi

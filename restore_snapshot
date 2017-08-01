@@ -115,7 +115,7 @@ if [ "${PRIMARY_SERVER}" != "" ]; then
         if [ $? -eq 0 ]; then
 
           sleep 5
-          time openssl enc -d -aes-128-ctr -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gunzip -dc | pv -q --rate-limit ${RATE} | dd bs=1048576 of=${TARGET_DEVICE}
+          time openssl enc -d -aes-128-ctr -pass file:${PASSWORD_FILE} -in ${FILEPATH} | gzip -dc | pv -q --rate-limit ${RATE} | dd bs=1048576 of=${TARGET_DEVICE}
           OUTPUT=$(ssh ${PRIMARY_SERVER} "scli --unmap_volume_from_sdc --volume_id ${VOLUME_ID} --sdc_ip ${MYIP} --i_am_sure")
 
           if [ ${VERBOSE} -eq 1 ]; then echo -e "${OUTPUT}\n"; fi

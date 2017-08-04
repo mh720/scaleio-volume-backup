@@ -34,7 +34,9 @@ REMOTE_BACKUP_LOCATION_TMP=/backups/tmp/
 # archive host. In this way, only working backups that have been tested will be archived.
 #
 # Additionally, a file is created as /tmp/service.nagiosdata.SCALEIO_TEMP_VOLUME_NAME in a format
-# useful for nagios-based monitoring software. Change this as needed for your own monitoring.
+# useful for nagios-based monitoring software. Change this as needed for your own monitoring. Example:
+#
+# # 0 postgres_volume_backup dump_time=260|restore_time=34|test_time=69|filesize=2686467612|rsync_time=25 Backed up /volumedump/597def7100000010.gz to my_backup_host.example.com:/backups/postgres/
 #
 # This script will:
 #
